@@ -29,6 +29,11 @@ const getByIdTraining = async(id_training)=>{
     return result.rows
 }
 
+const getByUser = async(id_user)=>{
+    const result = await pool.query(`${attendanceViewSelect} WHERE at.id_user = $1 ORDER BY at.created_at DESC`, [id_user])
+    return result.rows
+}
+
 const getByAthleteAndTraining = async(id_user,id_training)=>{
     const result = await pool.query(
         `${attendanceViewSelect} WHERE at.id_user = $1 AND at.id_training = $2 LIMIT 1`,
@@ -51,6 +56,7 @@ module.exports = {
     getAll,
     getById,
     getByIdTraining,
+    getByUser,
     getByAthleteAndTraining,
     create,
     deleteAttendance

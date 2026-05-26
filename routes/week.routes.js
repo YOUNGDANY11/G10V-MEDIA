@@ -6,6 +6,7 @@ const weekController = require('../controllers/weekController')
 
 const router = Router()
 
+router.get('/active', auth, weekController.getActive)
 router.get('/', auth, role(1), weekController.getAll)
 router.post('/', auth, role(1), weekController.create)
 router.delete('/:id', auth, role(1), weekController.deleteWeek)

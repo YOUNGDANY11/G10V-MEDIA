@@ -15,6 +15,7 @@ const getAll = async(req,res)=>{
             entrenamientos:trainings
         })
     }catch(error){
+        console.log(error)
         return res.status(500).json({
             status:'Error',
             mensaje:'No es posible obtener los entrenamientos'

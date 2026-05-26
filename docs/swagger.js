@@ -306,6 +306,16 @@ const swaggerSpec = {
                 }
             }
         },
+        '/weeks/active': {
+            get: {
+                tags: ['Weeks'],
+                summary: 'Listar semanas activas',
+                description: 'Retorna solo las semanas habilitadas en la fecha y hora actual de Bogota.',
+                responses: {
+                    200: { description: 'Consulta exitosa' }
+                }
+            }
+        },
         '/weeks/{id}': {
             delete: {
                 tags: ['Weeks'],
@@ -452,6 +462,17 @@ const swaggerSpec = {
                 responses: {
                     200: { description: 'Asistencia creada con exito' },
                     400: { description: 'Datos invalidos' }
+                }
+            }
+        },
+        '/attendances/mine': {
+            get: {
+                tags: ['Attendances'],
+                summary: 'Listar mis asistencias',
+                description: 'Solo deportista. Retorna las asistencias del usuario autenticado.',
+                responses: {
+                    200: { description: 'Consulta exitosa' },
+                    404: { description: 'No tienes asistencias registradas' }
                 }
             }
         },

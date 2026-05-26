@@ -5,6 +5,17 @@ const getAll = async() => {
     return result.rows
 }
 
+const getActive = async() => {
+    const result = await pool.query(
+        `SELECT *
+         FROM weeks
+         WHERE delivery_date = (NOW() AT TIME ZONE 'America/Bogota')::date
+           AND (NOW() AT TIME ZONE 'America/Bogota')::time BETWEEN start_time AND end_time
+         ORDER BY start_time ASC, id_week ASC`
+    )
+    return result.rows
+}
+
 const getById = async(id_week) => {
     const result = await pool.query('SELECT * FROM weeks WHERE id_week = $1', [id_week])
     return result.rows[0]
@@ -25,6 +36,7 @@ const deleteWeek = async(id_week) => {
 
 module.exports = {
     getAll,
+    getActive,
     getById,
     create,
     deleteWeek

@@ -31,6 +31,23 @@ const getAll = async(req, res) => {
     }
 }
 
+const getActive = async(req, res) => {
+    try {
+        const weeks = await weekModel.getActive()
+
+        return res.status(200).json({
+            status: 'Success',
+            mensaje: 'Consulta exitosa',
+            weeks
+        })
+    } catch(error) {
+        return res.status(500).json({
+            status: 'Error',
+            mensaje: 'No se pudieron obtener las semanas activas'
+        })
+    }
+}
+
 const create = async(req, res) => {
     try {
         const { name, delivery_date, start_time, end_time } = req.body
@@ -73,6 +90,7 @@ const create = async(req, res) => {
             week
         })
     } catch(error) {
+        console.log(error)
         return res.status(500).json({
             status: 'Error',
             mensaje: 'No se pudo crear la semana'
@@ -107,6 +125,7 @@ const deleteWeek = async(req, res) => {
 
 module.exports = {
     getAll,
+    getActive,
     create,
     deleteWeek
 }

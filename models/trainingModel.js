@@ -9,13 +9,10 @@ const getAll = async() =>{
             t.date,
             t.time,
             t.location,
-            u.name AS staff_name,
-            u.lastname AS staff_lastname,
-            c.name AS categorie_name
+            t.created_at,
+            t.updated_at
         FROM trainings t
-        INNER JOIN staff s ON s.id_staff = t.id_staff
-        INNER JOIN users u ON u.id_user = s.id_user
-        INNER JOIN categories c ON c.id_categorie = t.id_categorie`
+        ORDER BY t.date DESC, t.time DESC, t.id_training DESC`
     )
     return result.rows
 }
@@ -29,13 +26,9 @@ const getById = async(id_training)=>{
             t.date,
             t.time,
             t.location,
-            u.name AS staff_name,
-            u.lastname AS staff_lastname,
-            c.name AS categorie_name
+            t.created_at,
+            t.updated_at
         FROM trainings t
-        INNER JOIN staff s ON s.id_staff = t.id_staff
-        INNER JOIN users u ON u.id_user = s.id_user
-        INNER JOIN categories c ON c.id_categorie = t.id_categorie
         WHERE t.id_training = $1`,
         [id_training]
     )
@@ -51,13 +44,9 @@ const getByLocation = async(location)=>{
             t.date,
             t.time,
             t.location,
-            u.name AS staff_name,
-            u.lastname AS staff_lastname,
-            c.name AS categorie_name
+            t.created_at,
+            t.updated_at
         FROM trainings t
-        INNER JOIN staff s ON s.id_staff = t.id_staff
-        INNER JOIN users u ON u.id_user = s.id_user
-        INNER JOIN categories c ON c.id_categorie = t.id_categorie
         WHERE t.location ILIKE $1`,
         [`%${location}%`]
     )
@@ -73,13 +62,9 @@ const  getTrainingInTimeAnDate = async(time,date)=>{
             t.date,
             t.time,
             t.location,
-            u.name AS staff_name,
-            u.lastname AS staff_lastname,
-            c.name AS categorie_name
+            t.created_at,
+            t.updated_at
         FROM trainings t
-        INNER JOIN staff s ON s.id_staff = t.id_staff
-        INNER JOIN users u ON u.id_user = s.id_user
-        INNER JOIN categories c ON c.id_categorie = t.id_categorie
         WHERE t.time = $1 AND t.date = $2`,
         [time, date]
     )

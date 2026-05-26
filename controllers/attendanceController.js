@@ -95,6 +95,29 @@ const getByIdTraining = async(req,res)=>{
     }
 }
 
+const getMine = async(req,res)=>{
+    try{
+        const { id } = req.user
+        const attendances = await attendanceModel.getByUser(id)
+        if(attendances.length === 0){
+            return res.status(404).json({
+                status:'Error',
+                mensaje:'No tienes asistencias registradas'
+            })
+        }
+        return res.status(200).json({
+            status:'Success',
+            mensaje:'Consulta exitosa',
+            asistencias:attendances
+        })
+    }catch(error){
+        return res.status(500).json({
+            status:'Error',
+            mensaje:'No es posible obtener tus asistencias'
+        })
+    }
+}
+
 const create = async(req,res)=>{
     try{
         const { id } = req.user
@@ -131,8 +154,8 @@ const create = async(req,res)=>{
             })
         }
 
-        // Default window aligns with the UI (2 hours).
-        const windowMinutes = Number(process.env.ATTENDANCE_WINDOW_MINUTES || 120)
+        // Default window aligns with the UI (40 minutes).
+        const windowMinutes = Number(process.env.ATTENDANCE_WINDOW_MINUTES || 40)
         const start = parseTrainingStart(training)
         if(!start){
             return res.status(400).json({
@@ -178,5 +201,6 @@ module.exports = {
     getAll,
     getById,
     getByIdTraining,
+    getMine,
     create,
 }

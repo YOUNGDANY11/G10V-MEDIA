@@ -7,6 +7,7 @@ const attendanceController = require('../controllers/attendanceController')
 const router = Router()
 
 router.get('/training/:id', auth, role(1), attendanceController.getByIdTraining)
+router.get('/mine', auth, role(2), attendanceController.getMine)
 router.get('/:id', auth, role(1), attendanceController.getById)
 router.get('/', auth, role(1), attendanceController.getAll)
 router.post('/', auth, role(2), attendanceController.create)

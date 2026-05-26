@@ -11,7 +11,7 @@ const router = Router()
 const upload = multer({ storage: multer.memoryStorage() })
 const videoUpload = upload.single('video')
 
-router.get('/mine', auth, role(2), mediaController.getMyMedia)
+router.get('/mine', auth, role(1,2), mediaController.getMyMedia)
 router.get('/week/:id', auth, role(1), mediaController.getByWeek)
 router.get('/', auth, role(1), mediaController.getAll)
 router.get('/:id', auth, role(1), mediaController.getById)
