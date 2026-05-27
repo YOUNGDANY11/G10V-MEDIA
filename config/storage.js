@@ -1,12 +1,8 @@
-const { S3Client, DeleteObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3')
+const { S3Client, DeleteObjectCommand, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 require('dotenv').config()
 
 // ─── Cliente S3 (Railway Object Storage — Tigris / t3.storageapi.dev) ────────
-// Railway usa virtual-hosted-style: https://<bucket>.t3.storageapi.dev/<key>
-// requestChecksumCalculation: 'WHEN_REQUIRED' evita que el SDK agregue
-// x-amz-checksum-crc32 a las presigned URLs — el navegador no envía ese
-// header y la firma quedaría inválida.
 const s3 = new S3Client({
     region:   process.env.AWS_REGION || 'auto',
     endpoint: process.env.AWS_ENDPOINT_URL_S3,
@@ -20,54 +16,72 @@ const s3 = new S3Client({
 
 const BUCKET = process.env.RAILWAY_BUCKET_NAME
 
+// ─── Helpers de URL ───────────────────────────────────────────────────────────
+
+const _host = () =>
+    String(process.env.AWS_ENDPOINT_URL_S3 || '').replace(/^https?:\/\//, '').replace(/\/+$/, '')
+
+/** URL pública base del objeto (puede no tener acceso si el bucket es privado) */
+const buildPublicUrl = (key) => `https://${BUCKET}.${_host()}/${key}`
+
 /**
- * Construye la URL pública con virtual-hosted-style:
- * https://<bucket>.<host>/<key>
- *
- * Ejemplo: https://collected-wrap-thj4-f5ehv.t3.storageapi.dev/videos/abc.mp4
+ * Extrae el key S3 desde una URL almacenada en la BD.
+ * Soporta tanto URLs virtuales como paths relativos.
  */
-const buildPublicUrl = (key) => {
-    // Extraer el host del endpoint (quitar https://)
-    const host = String(process.env.AWS_ENDPOINT_URL_S3 || '')
-        .replace(/^https?:\/\//, '')
-        .replace(/\/+$/, '')
-    return `https://${BUCKET}.${host}/${key}`
+const extractKey = (urlOrKey) => {
+    if (!urlOrKey) return null
+    if (!urlOrKey.startsWith('http')) return urlOrKey          // ya es un key
+    const prefix = `https://${BUCKET}.${_host()}/`
+    if (urlOrKey.startsWith(prefix)) return urlOrKey.slice(prefix.length)
+    // path-style como fallback
+    const pathPrefix = `${process.env.AWS_ENDPOINT_URL_S3 || ''}/${BUCKET}/`
+    if (urlOrKey.startsWith(pathPrefix)) return urlOrKey.slice(pathPrefix.length)
+    return null
 }
+
+// ─── Presigned PUT (subida directa desde el navegador) ───────────────────────
 
 /**
  * Genera una presigned PUT URL para que el cliente suba el video
- * DIRECTO al bucket — sin pasar por el servidor.
- * Expira en 1 hora.
- *
- * @param {string} key         - ruta dentro del bucket, ej: "videos/1234-nombre.mp4"
- * @param {string} contentType - MIME type del archivo
- * @returns {Promise<string>}  URL firmada para PUT
+ * directo al bucket sin pasar por el servidor. Expira en 1 hora.
  */
 const createPresignedUploadUrl = async (key, contentType) => {
-    const command = new PutObjectCommand({
-        Bucket:      BUCKET,
-        Key:         key,
-        ContentType: contentType,
-    })
+    const command = new PutObjectCommand({ Bucket: BUCKET, Key: key, ContentType: contentType })
     return getSignedUrl(s3, command, { expiresIn: 3600 })
 }
 
+// ─── Presigned GET (lectura segura sin acceso público al bucket) ──────────────
+
 /**
- * Elimina un objeto del bucket a partir de su key o URL completa.
- * Silencioso en caso de error.
+ * Genera una presigned GET URL para leer/reproducir un objeto.
+ * Expira en 24 horas por defecto.
  *
- * @param {string} keyOrUrl
+ * @param {string} keyOrUrl  - key S3 o URL almacenada en la BD
+ * @param {number} expiresIn - segundos de vigencia (default: 86400 = 24h)
  */
+const createPresignedGetUrl = async (keyOrUrl, expiresIn = 86400) => {
+    const key = extractKey(keyOrUrl)
+    if (!key) throw new Error(`No se pudo extraer el key de: ${keyOrUrl}`)
+    const command = new GetObjectCommand({ Bucket: BUCKET, Key: key })
+    return getSignedUrl(s3, command, { expiresIn })
+}
+
+// ─── Eliminación ─────────────────────────────────────────────────────────────
+
+/** Elimina un objeto del bucket. Silencioso en caso de error. */
 const deleteObject = async (keyOrUrl) => {
     try {
-        let key = keyOrUrl
-        // Si es URL virtual-hosted, extraer el key
-        const host    = String(process.env.AWS_ENDPOINT_URL_S3 || '').replace(/^https?:\/\//, '').replace(/\/+$/, '')
-        const prefix  = `https://${BUCKET}.${host}/`
-        if (keyOrUrl.startsWith(prefix)) key = keyOrUrl.slice(prefix.length)
-
+        const key = extractKey(keyOrUrl) ?? keyOrUrl
         await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
     } catch (_) {}
 }
 
-module.exports = { s3, createPresignedUploadUrl, buildPublicUrl, deleteObject, BUCKET }
+module.exports = {
+    s3,
+    BUCKET,
+    buildPublicUrl,
+    extractKey,
+    createPresignedUploadUrl,
+    createPresignedGetUrl,
+    deleteObject,
+}

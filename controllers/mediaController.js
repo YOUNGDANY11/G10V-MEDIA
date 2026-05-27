@@ -3,7 +3,26 @@ const path = require('path')
 const mediaModel = require('../models/mediaModel')
 const userModel  = require('../models/userModel')
 const weekModel  = require('../models/weekModel')
-const { createPresignedUploadUrl, buildPublicUrl } = require('../config/storage')
+const { createPresignedUploadUrl, createPresignedGetUrl, buildPublicUrl } = require('../config/storage')
+
+// ─── Helper: enriquecer registros con presigned GET URL ───────────────────────
+
+/**
+ * Agrega `documentUrl` a cada registro de media.
+ * `documentUrl` es una presigned GET URL válida por 24 h.
+ * Si el documento está vacío o falla, se omite sin romper la respuesta.
+ */
+const withPresignedUrl = async (item) => {
+    if (!item?.document) return item
+    try {
+        const documentUrl = await createPresignedGetUrl(item.document)
+        return { ...item, documentUrl }
+    } catch {
+        return item
+    }
+}
+
+const enrichAll = (items) => Promise.all(items.map(withPresignedUrl))
 
 // ─── Helpers ventana de entrega ───────────────────────────────────────────────
 
@@ -54,8 +73,9 @@ const isWithinWindow = (window, now = new Date()) => {
 
 const getAll = async (req, res) => {
     try {
-        const media = await mediaModel.getAll()
-        if (media.length === 0) return res.status(404).json({ status: 'Error', mensaje: 'No hay entregas registradas' })
+        const rows = await mediaModel.getAll()
+        if (rows.length === 0) return res.status(404).json({ status: 'Error', mensaje: 'No hay entregas registradas' })
+        const media = await enrichAll(rows)
         return res.status(200).json({ status: 'Success', mensaje: 'Consulta exitosa', media })
     } catch {
         return res.status(500).json({ status: 'Error', mensaje: 'No se pudo obtener la informacion de media' })
@@ -64,8 +84,9 @@ const getAll = async (req, res) => {
 
 const getById = async (req, res) => {
     try {
-        const media = await mediaModel.getById(req.params.id)
-        if (!media) return res.status(404).json({ status: 'Error', mensaje: 'Esta entrega no existe' })
+        const row = await mediaModel.getById(req.params.id)
+        if (!row) return res.status(404).json({ status: 'Error', mensaje: 'Esta entrega no existe' })
+        const media = await withPresignedUrl(row)
         return res.status(200).json({ status: 'Success', mensaje: 'Consulta exitosa', media })
     } catch {
         return res.status(500).json({ status: 'Error', mensaje: 'No se pudo obtener la entrega' })
@@ -74,8 +95,9 @@ const getById = async (req, res) => {
 
 const getMyMedia = async (req, res) => {
     try {
-        const media = await mediaModel.getByUser(req.user.id)
-        if (media.length === 0) return res.status(404).json({ status: 'Error', mensaje: 'No tienes entregas registradas' })
+        const rows = await mediaModel.getByUser(req.user.id)
+        if (rows.length === 0) return res.status(404).json({ status: 'Error', mensaje: 'No tienes entregas registradas' })
+        const media = await enrichAll(rows)
         return res.status(200).json({ status: 'Success', mensaje: 'Consulta exitosa', media })
     } catch (err) {
         console.error(err)
@@ -85,20 +107,21 @@ const getMyMedia = async (req, res) => {
 
 const getByWeek = async (req, res) => {
     try {
-        const media = await mediaModel.getByWeek(req.params.id)
-        if (media.length === 0) return res.status(404).json({ status: 'Error', mensaje: 'No hay entregas para esta semana' })
+        const rows = await mediaModel.getByWeek(req.params.id)
+        if (rows.length === 0) return res.status(404).json({ status: 'Error', mensaje: 'No hay entregas para esta semana' })
+        const media = await enrichAll(rows)
         return res.status(200).json({ status: 'Success', mensaje: 'Consulta exitosa', media })
     } catch {
         return res.status(500).json({ status: 'Error', mensaje: 'No se pudo obtener la informacion por semana' })
     }
 }
 
+// ─── Subida en dos pasos ──────────────────────────────────────────────────────
+
 /**
- * PASO 1 — El cliente solicita autorización y recibe una URL firmada.
- * El video NO pasa por el servidor: va directo del navegador al bucket.
- *
- * Body esperado: { id_week, filename, contentType }
- * Respuesta:     { uploadUrl, key, publicUrl }
+ * PASO 1 — Validar + generar presigned PUT URL.
+ * El video NO pasa por el servidor.
+ * Body: { id_week, filename, contentType }
  */
 const presignUpload = async (req, res) => {
     try {
@@ -108,11 +131,9 @@ const presignUpload = async (req, res) => {
         if (!user) return res.status(404).json({ status: 'Error', mensaje: 'Usuario no existente' })
 
         const { id_week, filename, contentType } = req.body
-
         if (!id_week || !filename || !contentType) {
             return res.status(400).json({ status: 'Error', mensaje: 'Se requiere id_week, filename y contentType' })
         }
-
         if (!String(contentType).startsWith('video/')) {
             return res.status(400).json({ status: 'Error', mensaje: 'El archivo debe ser un video' })
         }
@@ -122,26 +143,19 @@ const presignUpload = async (req, res) => {
 
         const window = buildWeekWindow(week)
         if (!window) return res.status(400).json({ status: 'Error', mensaje: 'El rango de tiempo no es valido' })
-
         if (!isWithinWindow(window)) {
             return res.status(400).json({ status: 'Error', mensaje: 'La ventana de entrega ya finalizo o aun no ha iniciado' })
         }
 
-        // Construir key único dentro del bucket
-        const ext     = path.extname(filename).toLowerCase() || '.mp4'
-        const base    = path.basename(filename, path.extname(filename))
+        const ext  = path.extname(filename).toLowerCase() || '.mp4'
+        const base = path.basename(filename, path.extname(filename))
             .replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60)
-        const key     = `videos/${Date.now()}-u${id}-${base}${ext}`
+        const key  = `videos/${Date.now()}-u${id}-${base}${ext}`
 
         const uploadUrl = await createPresignedUploadUrl(key, contentType)
         const publicUrl = buildPublicUrl(key)
 
-        return res.status(200).json({
-            status: 'Success',
-            uploadUrl,   // el cliente hace PUT a esta URL con el archivo
-            key,         // se envía de vuelta en /confirm
-            publicUrl,   // URL final donde quedará el video
-        })
+        return res.status(200).json({ status: 'Success', uploadUrl, key, publicUrl })
     } catch (err) {
         console.error('presignUpload error:', err)
         return res.status(500).json({ status: 'Error', mensaje: 'No se pudo generar la URL de subida' })
@@ -149,10 +163,8 @@ const presignUpload = async (req, res) => {
 }
 
 /**
- * PASO 2 — El cliente confirma que la subida directa terminó.
- * El servidor guarda el registro en la base de datos.
- *
- * Body esperado: { id_week, key, publicUrl }
+ * PASO 2 — Confirmar subida exitosa y guardar en BD.
+ * Body: { id_week, key, publicUrl }
  */
 const confirmUpload = async (req, res) => {
     try {
@@ -162,12 +174,9 @@ const confirmUpload = async (req, res) => {
         if (!user) return res.status(404).json({ status: 'Error', mensaje: 'Usuario no existente' })
 
         const { id_week, key, publicUrl } = req.body
-
         if (!id_week || !key || !publicUrl) {
             return res.status(400).json({ status: 'Error', mensaje: 'Se requiere id_week, key y publicUrl' })
         }
-
-        // Verificar que el key pertenece a este usuario (prefijo de seguridad)
         if (!key.includes(`-u${id}-`)) {
             return res.status(403).json({ status: 'Error', mensaje: 'No autorizado para confirmar esta subida' })
         }
@@ -175,13 +184,13 @@ const confirmUpload = async (req, res) => {
         const week = await weekModel.getById(id_week)
         if (!week) return res.status(404).json({ status: 'Error', mensaje: 'Esta semana no existe' })
 
-        // Segunda validación de ventana para evitar confirmaciones tardías
         const window = buildWeekWindow(week)
         if (!isWithinWindow(window)) {
             return res.status(400).json({ status: 'Error', mensaje: 'La ventana de entrega ya finalizo' })
         }
 
-        const media = await mediaModel.create(user.id_user, id_week, week.name, '', publicUrl)
+        const row   = await mediaModel.create(user.id_user, id_week, week.name, '', publicUrl)
+        const media = await withPresignedUrl(row)
 
         return res.status(200).json({ status: 'Success', mensaje: 'Video registrado con exito', media })
     } catch (err) {
