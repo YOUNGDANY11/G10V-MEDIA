@@ -4,7 +4,9 @@ require('dotenv').config()
 
 // ─── Cliente S3 (Railway Object Storage — Tigris / t3.storageapi.dev) ────────
 // Railway usa virtual-hosted-style: https://<bucket>.t3.storageapi.dev/<key>
-// Por eso forcePathStyle debe ser FALSE (valor por defecto).
+// requestChecksumCalculation: 'WHEN_REQUIRED' evita que el SDK agregue
+// x-amz-checksum-crc32 a las presigned URLs — el navegador no envía ese
+// header y la firma quedaría inválida.
 const s3 = new S3Client({
     region:   process.env.AWS_REGION || 'auto',
     endpoint: process.env.AWS_ENDPOINT_URL_S3,
@@ -12,7 +14,8 @@ const s3 = new S3Client({
         accessKeyId:     process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     },
-    // forcePathStyle: false  ← no se pone; es el default correcto para Tigris
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
 })
 
 const BUCKET = process.env.RAILWAY_BUCKET_NAME
