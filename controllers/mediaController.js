@@ -184,11 +184,6 @@ const confirmUpload = async (req, res) => {
         const week = await weekModel.getById(id_week)
         if (!week) return res.status(404).json({ status: 'Error', mensaje: 'Esta semana no existe' })
 
-        const window = buildWeekWindow(week)
-        if (!isWithinWindow(window)) {
-            return res.status(400).json({ status: 'Error', mensaje: 'La ventana de entrega ya finalizo' })
-        }
-
         const row   = await mediaModel.create(user.id_user, id_week, week.name, '', publicUrl)
         const media = await withPresignedUrl(row)
 
