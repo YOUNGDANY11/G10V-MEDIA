@@ -2,6 +2,29 @@ const attendanceModel = require('../models/attendanceModel')
 const userModel = require('../models/userModel')
 const trainingModel = require('../models/trainingModel')
 
+const TIME_ZONE = process.env.DB_TIMEZONE || 'America/Bogota'
+
+const getZonedDateParts = (referenceDate = new Date()) => {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    })
+
+    const parts = formatter.formatToParts(referenceDate)
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+
+    return {
+        date: `${values.year}-${values.month}-${values.day}`,
+        time: `${values.hour}:${values.minute}:${values.second}`,
+    }
+}
+
 const parseTrainingStart = (training) => {
     const rawDate = training?.date
     const rawTime = training?.time
@@ -18,7 +41,13 @@ const parseTrainingStart = (training) => {
     if (time.length === 5) time = `${time}:00`
 
     if (!date) return null
-    const dt = new Date(`${date}T${time}`)
+
+    const [year, month, day] = date.split('-').map(Number)
+    const [hour, minute, second] = time.split(':').map(Number)
+
+    if ([year, month, day, hour, minute, second].some(Number.isNaN)) return null
+
+    const dt = new Date(Date.UTC(year, month - 1, day, hour + 5, minute, second))
     if (Number.isNaN(dt.getTime())) return null
     return dt
 }
@@ -164,8 +193,27 @@ const create = async(req,res)=>{
             })
         }
         const end = new Date(start.getTime() + (windowMinutes * 60 * 1000))
-        const now = new Date()
-        if(now < start || now > end){
+        const current = getZonedDateParts()
+        const currentDate = current.date
+        const currentTime = current.time
+        const startDate = start.toLocaleDateString('en-CA', { timeZone: TIME_ZONE })
+        const startTime = start.toLocaleTimeString('en-CA', {
+            timeZone: TIME_ZONE,
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        })
+        const endDate = end.toLocaleDateString('en-CA', { timeZone: TIME_ZONE })
+        const endTime = end.toLocaleTimeString('en-CA', {
+            timeZone: TIME_ZONE,
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        })
+
+        if (currentDate < startDate || currentDate > endDate || (currentDate === startDate && currentTime < startTime) || (currentDate === endDate && currentTime > endTime)) {
             return res.status(400).json({
                 status:'Error',
                 mensaje:'El registro de asistencia solo está disponible dentro de la ventana de tiempo del entrenamiento'

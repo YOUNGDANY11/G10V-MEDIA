@@ -16,8 +16,6 @@ const s3 = new S3Client({
 
 const BUCKET = process.env.RAILWAY_BUCKET_NAME
 
-// ─── Helpers de URL ───────────────────────────────────────────────────────────
-
 const _host = () =>
     String(process.env.AWS_ENDPOINT_URL_S3 || '').replace(/^https?:\/\//, '').replace(/\/+$/, '')
 
