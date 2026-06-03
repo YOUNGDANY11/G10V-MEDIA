@@ -6,21 +6,39 @@ const { renderTemplateFile } = require('../utils/renderEmailTemplate')
 
 const TRAINING_TEMPLATE = path.join(__dirname, '..', 'templates', 'training-notification.email.html')
 
+function formatDateES(raw) {
+    const str = raw instanceof Date ? raw.toISOString() : String(raw)
+    const [year, month, day] = str.slice(0, 10).split('-').map(Number)
+    return new Date(year, month - 1, day).toLocaleDateString('es-CO', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    })
+}
+
+function formatTime12h(raw) {
+    const [h, m] = String(raw).split(':').map(Number)
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const hour = h % 12 || 12
+    return `${hour}:${String(m).padStart(2, '0')} ${ampm}`
+}
+
 async function notifyDeportistas(training, action) {
     try {
         const deportistas = await userModel.getByRole(2)
         const emails = deportistas.map(u => u.email).filter(Boolean)
         if (emails.length === 0) return
 
-        const isNew = action === 'create'
+        const isNew    = action === 'create'
+        const dateES   = formatDateES(training.date)
+        const time12h  = formatTime12h(training.time)
+
         const html = await renderTemplateFile(TRAINING_TEMPLATE, {
             APP_NAME:      process.env.APP_NAME || 'G10V - LANCELOT',
             ACTION_LABEL:  isNew ? 'Nuevo' : 'Actualizado',
             ACTION_PAST:   isNew ? 'programado' : 'actualizado',
             NAME:          training.name,
             DESCRIPTION:   training.description,
-            DATE:          training.date,
-            TIME:          training.time,
+            DATE:          dateES,
+            TIME:          time12h,
             LOCATION:      training.location,
             SUPPORT_EMAIL: process.env.SUPPORT_EMAIL || '',
             YEAR:          new Date().getFullYear(),
@@ -32,7 +50,7 @@ async function notifyDeportistas(training, action) {
             subject: isNew
                 ? `Nuevo entrenamiento: ${training.name}`
                 : `Entrenamiento actualizado: ${training.name}`,
-            text: `Entrenamiento ${isNew ? 'programado' : 'actualizado'}: ${training.name}\nFecha: ${training.date} - Hora: ${training.time}\nLugar: ${training.location}`,
+            text: `Entrenamiento ${isNew ? 'programado' : 'actualizado'}: ${training.name}\nFecha: ${dateES} - Hora: ${time12h}\nLugar: ${training.location}\nDescripcion: ${training.description}`,
             html,
         })
     } catch (err) {
