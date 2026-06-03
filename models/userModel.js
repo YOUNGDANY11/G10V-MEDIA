@@ -44,6 +44,11 @@ const deleteUser = async(id_user) => {
     return result.rows[0]
 }
 
+const getByRole = async (id_role) => {
+    const result = await pool.query('SELECT * FROM users WHERE id_role = $1', [id_role])
+    return result.rows
+}
+
 const updatePassword = async(passwordHash, id_user) => {
     const result = await pool.query('UPDATE users SET password = $1 WHERE id_user = $2 RETURNING *',[passwordHash, id_user])
     return result.rows[0]
@@ -56,6 +61,7 @@ module.exports = {
     getByEmail,
     getByName,
     getByLastName,
+    getByRole,
     create,
     update,
     deleteUser,

@@ -11,9 +11,13 @@ async function sendEmail({ from, to, subject, text, html }) {
     const apiKey = process.env.BREVO_API_KEY
     if (!apiKey) throw new Error('Falta BREVO_API_KEY en variables de entorno')
 
+    const recipients = Array.isArray(to)
+        ? to.map(email => ({ email }))
+        : [{ email: to }]
+
     const payload = JSON.stringify({
         sender: parseSender(from),
-        to: [{ email: to }],
+        to: recipients,
         subject,
         htmlContent: html,
         textContent: text,
