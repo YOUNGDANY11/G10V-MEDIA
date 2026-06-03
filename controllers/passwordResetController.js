@@ -36,7 +36,7 @@ const forgotPassword = async(req,res)=>{
         await passwordModel.createReset(user.id_user, code_hash, expires_at)
 
         const templatePath = path.join(__dirname, '..', 'templates', 'password-reset.email.html')
-        const supportEmail = process.env.SUPPORT_EMAIL || process.env.GMAIL_USER || ''
+        const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_FROM || ''
         const html = await renderTemplateFile(templatePath, {
             APP_NAME: process.env.APP_NAME || 'G10V - LANCELOT',
             CODE: code,
@@ -46,7 +46,7 @@ const forgotPassword = async(req,res)=>{
         })
 
         await sendEmail({
-            from: `"G11V" <${process.env.GMAIL_USER}>`,
+            from: process.env.EMAIL_FROM,
             to: user.email,
             subject: 'Código para restablecer tu contraseña',
             text: `Tu código de verificación es: ${code}\n\nEste código expira en ${TTL_MINUTES} minutos.\nSi no solicitaste este cambio, ignora este correo.`,

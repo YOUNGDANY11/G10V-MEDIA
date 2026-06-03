@@ -7,7 +7,7 @@ const swaggerSpec = {
     },
     servers: [
         {
-            url: 'http://localhost:3000',
+            url: 'https://g10v-media-production-3645.up.railway.app/',
             description: 'Servidor local'
         }
     ],
