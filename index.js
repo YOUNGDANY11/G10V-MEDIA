@@ -11,6 +11,7 @@ const trainingRoutes = require('./routes/training.routes')
 const attendanceRoutes = require('./routes/attendance.routes')
 const mediaRoutes = require('./routes/media.routes')
 const weekRoutes = require('./routes/week.routes')
+const passwordResetRoutes = require('./routes/passwordResetRoutes')
 
 const app = express()
 
@@ -38,6 +39,7 @@ app.use('/api/trainings', trainingRoutes)
 app.use('/api/attendances', attendanceRoutes)
 app.use('/api/media', mediaRoutes)
 app.use('/api/weeks', weekRoutes)
+app.use('/api/password-reset', passwordResetRoutes)
 
 const port = process.env.PORT || 3000
 
