@@ -3,7 +3,18 @@ const swaggerSpec = {
     info: {
         title: 'G10V Media API',
         version: '1.0.0',
-        description: 'API para autenticacion, usuarios, semanas, media, entrenamientos, asistencias y recuperacion de contraseña.'
+        description: `API para autenticacion, usuarios, semanas, media, entrenamientos, asistencias y recuperacion de contraseña.
+
+## Sistema de mensajeria (Brevo)
+
+El backend cuenta con dos flujos de correo electronico:
+
+| Flujo | Disparado por | Destinatario |
+|---|---|---|
+| **Recuperacion de contraseña** | \`POST /api/password-reset/forgot\` | El usuario que solicita el reset |
+| **Notificacion de entrenamiento** | \`POST /api/trainings\` y \`PUT /api/trainings/:id\` | Todos los deportistas (role 2) en un solo correo |
+
+Los correos de entrenamiento se envian en segundo plano — si fallan, la operacion principal no se ve afectada.`
     },
     servers: [
         {
@@ -410,7 +421,7 @@ const swaggerSpec = {
             post: {
                 tags: ['Trainings'],
                 summary: 'Crear entrenamiento',
-                description: 'Solo admin (role 1). Crea un entrenamiento nuevo.',
+                description: 'Solo admin (role 1). Crea un entrenamiento nuevo. **Dispara un correo automatico** a todos los deportistas registrados con los detalles del entrenamiento. El correo se envia en segundo plano y no afecta la respuesta.',
                 requestBody: {
                     required: true,
                     content: { 'application/json': { schema: { $ref: '#/components/schemas/TrainingCreate' } } }
@@ -443,7 +454,7 @@ const swaggerSpec = {
             put: {
                 tags: ['Trainings'],
                 summary: 'Actualizar entrenamiento',
-                description: 'Solo admin (role 1). Actualiza un entrenamiento. Valida conflictos de fecha/hora con otros entrenamientos.',
+                description: 'Solo admin (role 1). Actualiza un entrenamiento. Valida conflictos de fecha/hora con otros entrenamientos. **Dispara un correo automatico** a todos los deportistas registrados notificando el cambio. El correo se envia en segundo plano y no afecta la respuesta.',
                 parameters: [
                     { name: 'id', in: 'path', required: true, schema: { type: 'integer' }, description: 'ID del entrenamiento' }
                 ],
