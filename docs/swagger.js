@@ -3,18 +3,7 @@ const swaggerSpec = {
     info: {
         title: 'G10V Media API',
         version: '1.0.0',
-        description: `API para autenticacion, usuarios, semanas, media, entrenamientos, asistencias y recuperacion de contraseña.
-
-## Sistema de mensajeria (Brevo)
-
-El backend cuenta con dos flujos de correo electronico:
-
-| Flujo | Disparado por | Destinatario |
-|---|---|---|
-| **Recuperacion de contraseña** | \`POST /api/password-reset/forgot\` | El usuario que solicita el reset |
-| **Notificacion de entrenamiento** | \`POST /api/trainings\` y \`PUT /api/trainings/:id\` | Todos los deportistas (role 2) en un solo correo |
-
-Los correos de entrenamiento se envian en segundo plano — si fallan, la operacion principal no se ve afectada.`
+        description: `API G10V`
     },
     servers: [
         {
