@@ -3,6 +3,7 @@ const trainingModel = require('../models/trainingModel')
 const userModel = require('../models/userModel')
 const { sendEmail } = require('../config/email.config')
 const { renderTemplateFile } = require('../utils/renderEmailTemplate')
+const { normalizeCoordinate } = require('../utils/geo')
 
 const TRAINING_TEMPLATE = path.join(__dirname, '..', 'templates', 'training-notification.email.html')
 
@@ -141,15 +142,18 @@ const getByLocation = async(req,res)=>{
 
 const create = async(req,res)=>{
     try{
-        const {name,description,date,time,location} = req.body
-        if(!name || !description || !date || !time || !location){
+        const {name,description,date,time,location,lat,lng} = req.body
+        const normalizedLat = normalizeCoordinate(lat, 'lat')
+        const normalizedLng = normalizeCoordinate(lng, 'lng')
+
+        if(!name || !description || !date || !time || !location || normalizedLat === null || normalizedLng === null){
             return res.status(400).json({
                 status:'Error',
                 mensaje:'Es requerida toda la informacion'
             })
         }
 
-        const traininig = await trainingModel.create(name,description,date,time,location)
+        const traininig = await trainingModel.create(name,description,date,time,location,normalizedLat,normalizedLng)
         notifyDeportistas(traininig, 'create')
         return res.status(200).json({
             status:'Success',
@@ -168,8 +172,11 @@ const update = async(req,res)=>{
     try{
         const {id} = req.params
         const id_training = id
-        const {name,description,date,time,location} = req.body
-        if(!name || !description || !date || !time || !location){
+        const {name,description,date,time,location,lat,lng} = req.body
+        const normalizedLat = normalizeCoordinate(lat, 'lat')
+        const normalizedLng = normalizeCoordinate(lng, 'lng')
+
+        if(!name || !description || !date || !time || !location || normalizedLat === null || normalizedLng === null){
             return res.status(400).json({
                 status:'Error',
                 mensaje:'Es requerida toda la informacion'
@@ -194,7 +201,7 @@ const update = async(req,res)=>{
         }
 
 
-        const traininig = await trainingModel.update(name,description,date,time,location,id_training)
+        const traininig = await trainingModel.update(name,description,date,time,location,normalizedLat,normalizedLng,id_training)
         notifyDeportistas(traininig, 'update')
         return res.status(200).json({
             status:'Success',

@@ -1,8 +1,13 @@
 const attendanceModel = require('../models/attendanceModel')
 const userModel = require('../models/userModel')
 const trainingModel = require('../models/trainingModel')
+const { calculateDistanceMeters, normalizeCoordinate } = require('../utils/geo')
 
 const TIME_ZONE = process.env.DB_TIMEZONE || 'America/Bogota'
+const configuredAttendanceRadius = Number(process.env.ATTENDANCE_RADIUS_METERS)
+const ATTENDANCE_RADIUS_METERS = Number.isFinite(configuredAttendanceRadius) && configuredAttendanceRadius > 0
+    ? configuredAttendanceRadius
+    : 200
 
 const getZonedDateParts = (referenceDate = new Date()) => {
     const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -160,11 +165,20 @@ const create = async(req,res)=>{
             })
         }
 
-        const { id_user: requestedUserId, id_training, status } = req.body
+        const { id_user: requestedUserId, id_training, status, lat, lng } = req.body
         if(!id_training || !status){
             return res.status(400).json({
                 status:'Error',
                 mensaje:'Es requerida toda la informacion'
+            })
+        }
+
+        const userLat = normalizeCoordinate(lat, 'lat')
+        const userLng = normalizeCoordinate(lng, 'lng')
+        if(userLat === null || userLng === null){
+            return res.status(400).json({
+                status:'Error',
+                mensaje:'Debes enviar latitud y longitud válidas para registrar la asistencia'
             })
         }
 
@@ -180,6 +194,15 @@ const create = async(req,res)=>{
             return res.status(404).json({
                 status:'Error',
                 mensaje:'Este entrenamiento no esta registrado'
+            })
+        }
+
+        const trainingLat = normalizeCoordinate(training.lat, 'lat')
+        const trainingLng = normalizeCoordinate(training.lng, 'lng')
+        if(trainingLat === null || trainingLng === null){
+            return res.status(400).json({
+                status:'Error',
+                mensaje:'No puedes registrar la asistencia porque este entrenamiento no tiene coordenadas configuradas'
             })
         }
 
@@ -217,6 +240,14 @@ const create = async(req,res)=>{
             return res.status(400).json({
                 status:'Error',
                 mensaje:'El registro de asistencia solo está disponible dentro de la ventana de tiempo del entrenamiento'
+            })
+        }
+
+        const distanceMeters = calculateDistanceMeters(userLat, userLng, trainingLat, trainingLng)
+        if(distanceMeters > ATTENDANCE_RADIUS_METERS){
+            return res.status(400).json({
+                status:'Error',
+                mensaje:`No puedes registrar la asistencia porque estás a ${Math.round(distanceMeters)} metros del lugar del entrenamiento (máximo permitido: ${ATTENDANCE_RADIUS_METERS}m)`
             })
         }
 

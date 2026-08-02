@@ -8,7 +8,9 @@ const attendanceViewSelect = `
         t.name AS training_name,
         t.date AS training_date,
         t.time AS training_time,
-        t.location AS training_location
+        t.location AS training_location,
+        t.lat AS training_lat,
+        t.lng AS training_lng
     FROM attendances at
     INNER JOIN users u ON u.id_user = at.id_user
     INNER JOIN trainings t ON t.id_training = at.id_training

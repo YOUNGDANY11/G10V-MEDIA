@@ -102,21 +102,25 @@ const swaggerSpec = {
             },
             TrainingCreate: {
                 type: 'object',
-                required: ['name', 'description', 'date', 'time', 'location'],
+                required: ['name', 'description', 'date', 'time', 'location', 'lat', 'lng'],
                 properties: {
                     name:        { type: 'string', example: 'Entrenamiento Fuerza' },
                     description: { type: 'string', example: 'Sesion de tren superior' },
                     date:        { type: 'string', example: '2026-05-25', description: 'Formato YYYY-MM-DD' },
                     time:        { type: 'string', example: '08:00', description: 'Formato HH:MM' },
-                    location:    { type: 'string', example: 'Cancha principal' }
+                    location:    { type: 'string', example: 'Cancha principal' },
+                    lat:         { type: 'number', example: 4.711, description: 'Latitud exacta del entrenamiento' },
+                    lng:         { type: 'number', example: -74.0721, description: 'Longitud exacta del entrenamiento' }
                 }
             },
             AttendanceCreate: {
                 type: 'object',
-                required: ['id_training', 'status'],
+                required: ['id_training', 'status', 'lat', 'lng'],
                 properties: {
                     id_training: { type: 'integer', example: 1 },
-                    status:      { type: 'string',  example: 'Presente' }
+                    status:      { type: 'string',  example: 'Presente' },
+                    lat:         { type: 'number', example: 4.7109, description: 'Latitud del usuario al registrar asistencia' },
+                    lng:         { type: 'number', example: -74.0725, description: 'Longitud del usuario al registrar asistencia' }
                 }
             },
             PasswordResetForgot: {
@@ -410,7 +414,7 @@ const swaggerSpec = {
             post: {
                 tags: ['Trainings'],
                 summary: 'Crear entrenamiento',
-                description: 'Solo admin (role 1). Crea un entrenamiento nuevo. **Dispara un correo automatico** a todos los deportistas registrados con los detalles del entrenamiento. El correo se envia en segundo plano y no afecta la respuesta.',
+                description: 'Solo admin (role 1). Crea un entrenamiento nuevo con coordenadas exactas `lat` y `lng`. **Dispara un correo automatico** a todos los deportistas registrados con los detalles del entrenamiento. El correo se envia en segundo plano y no afecta la respuesta.',
                 requestBody: {
                     required: true,
                     content: { 'application/json': { schema: { $ref: '#/components/schemas/TrainingCreate' } } }
@@ -443,7 +447,7 @@ const swaggerSpec = {
             put: {
                 tags: ['Trainings'],
                 summary: 'Actualizar entrenamiento',
-                description: 'Solo admin (role 1). Actualiza un entrenamiento. Valida conflictos de fecha/hora con otros entrenamientos. **Dispara un correo automatico** a todos los deportistas registrados notificando el cambio. El correo se envia en segundo plano y no afecta la respuesta.',
+                description: 'Solo admin (role 1). Actualiza un entrenamiento y sus coordenadas exactas `lat` y `lng`. Valida conflictos de fecha/hora con otros entrenamientos. **Dispara un correo automatico** a todos los deportistas registrados notificando el cambio. El correo se envia en segundo plano y no afecta la respuesta.',
                 parameters: [
                     { name: 'id', in: 'path', required: true, schema: { type: 'integer' }, description: 'ID del entrenamiento' }
                 ],
@@ -546,7 +550,7 @@ const swaggerSpec = {
             post: {
                 tags: ['Attendances'],
                 summary: 'Registrar asistencia',
-                description: 'Solo deportista (role 2). Registra asistencia para un entrenamiento. Solo es posible dentro de los primeros 40 minutos desde el inicio del entrenamiento. No se puede registrar dos veces para el mismo entrenamiento.',
+                description: 'Solo deportista (role 2). Registra asistencia para un entrenamiento. El servidor exige `lat` y `lng`, valida una distancia maxima configurable y solo permite el registro dentro de los primeros 40 minutos desde el inicio del entrenamiento. No se puede registrar dos veces para el mismo entrenamiento.',
                 requestBody: {
                     required: true,
                     content: { 'application/json': { schema: { $ref: '#/components/schemas/AttendanceCreate' } } }
